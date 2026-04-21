@@ -1111,8 +1111,10 @@ async def test_desk_stale_fallback(settings, fixtures_dir):
 
     desk._cache._entry = (desk._cache._entry[0] - 1e6, desk._cache._entry[1])
 
+    # Token cache still fresh (3000 s TTL) — cached token is reused, so the
+    # stale path is triggered by the tickets endpoint failing instead.
     with respx.mock() as m:
-        m.post("https://accounts.zoho.com/oauth/v2/token").mock(
+        m.get("https://desk.zoho.com/api/v1/ticketsCount").mock(
             return_value=httpx.Response(500)
         )
         async with httpx.AsyncClient() as client:
