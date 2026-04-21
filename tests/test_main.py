@@ -25,6 +25,7 @@ def test_dispatches_to_badge_mode(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "_load_config", _cfg_mod)
     monkeypatch.setattr(main, "BadgeMode", lambda d, c: badge_inst)
     monkeypatch.setattr(main, "DeskMode", lambda d, c, state_path: desk_inst)
+    monkeypatch.setattr(main, "_poll_loop", lambda *a, **kw: None)
 
     main.run(state_path=str(p))
 
@@ -42,6 +43,7 @@ def test_dispatches_to_desk_mode(tmp_path, monkeypatch):
     monkeypatch.setattr(main, "_load_config", _cfg_mod)
     monkeypatch.setattr(main, "BadgeMode", lambda d, c: badge_inst)
     monkeypatch.setattr(main, "DeskMode", lambda d, c, state_path: desk_inst)
+    monkeypatch.setattr(main, "_poll_loop", lambda *a, **kw: None)
 
     main.run(state_path=str(p))
 
