@@ -28,21 +28,21 @@ def render(display, payload, stale_marker):
     display.text(cat, cat_x, 10, scale=5)
 
     # Divider.
-    display.line(0, 68, WIDTH, 68)
+    display.line(0, 64, WIDTH, 64)
 
     # Middle: station + visibility.
     line1 = station
     if vis is not None:
         line1 += f"  vis {int(vis)}SM" if vis == int(vis) else f"  vis {vis}SM"
-    display.text(line1, 8, 76, scale=2)
+    display.text(line1, 8, 72, scale=2)
 
     # Wind line.
-    display.text(wind, 8, 98, scale=2)
+    display.text(wind, 8, 90, scale=2)
 
     # Clouds line.
-    display.text(sky, 8, 116, scale=2)
+    display.text(sky, 8, 108, scale=2)
 
     if stale_marker:
-        display.text(stale_marker, WIDTH - 56, HEIGHT - 10, scale=1)
+        display.text(stale_marker, WIDTH - 56, HEIGHT - 8, scale=1)
 
     display.update()
