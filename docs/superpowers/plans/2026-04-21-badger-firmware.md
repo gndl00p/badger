@@ -1182,10 +1182,10 @@ Expected: failures with `ModuleNotFoundError`.
 - [ ] **Step 3: Write `modes/badge.py`**
 
 ```python
-from screens import bio, contact, logo, name_card, now
+from screens import bio, contact, logo, name_card, now  # noqa: F401
 
-_SCREENS = (name_card, contact, bio, now, logo)
-_COUNT = len(_SCREENS)
+_SCREEN_NAMES = ("name_card", "contact", "bio", "now", "logo")
+_COUNT = len(_SCREEN_NAMES)
 
 
 class BadgeMode:
@@ -1196,7 +1196,8 @@ class BadgeMode:
         self._led_on = False
 
     def render_current(self):
-        _SCREENS[self.screen_index].render(self.display, self.config)
+        screen = globals()[_SCREEN_NAMES[self.screen_index]]
+        screen.render(self.display, self.config)
 
     def handle_button(self, btn):
         if btn == "A":
@@ -1213,6 +1214,8 @@ class BadgeMode:
         elif btn == "DOWN":
             self.display.halt()
 ```
+
+`_SCREEN_NAMES` is a tuple of string names, not module objects. The `render_current` method looks each screen up in `globals()` so the test's `monkeypatch.setattr(badge, "name_card", ...)` is visible at call time — capturing module refs into a tuple at import time would bind the original modules and bypass the monkeypatch.
 
 - [ ] **Step 4: Run tests to verify they pass**
 
