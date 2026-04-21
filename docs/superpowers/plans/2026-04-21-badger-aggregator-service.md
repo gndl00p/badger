@@ -1336,8 +1336,10 @@ async def test_crm_stale_fallback(settings, fixtures_dir):
 
     crm._cache._entry = (crm._cache._entry[0] - 1e6, crm._cache._entry[1])
 
+    # Token cache still fresh (3000 s TTL) — cached token is reused, so the
+    # stale path is triggered by the COQL endpoint failing instead.
     with respx.mock() as m:
-        m.post("https://accounts.zoho.com/oauth/v2/token").mock(
+        m.post("https://www.zohoapis.com/crm/v8/coql").mock(
             return_value=httpx.Response(500)
         )
         async with httpx.AsyncClient() as client:
