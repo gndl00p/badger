@@ -39,14 +39,13 @@ def render(display, weather, stale_marker=None):
             line1 += "  vis {0}SM".format(int(vis))
         else:
             line1 += "  vis {0}SM".format(vis)
+    if updated is not None:
+        line1 += "  {0}Z".format(updated)
     display.text(line1, 8, 72, scale=2)
 
     display.text(wind, 8, 90, scale=2)
 
     display.text(sky, 8, 108, scale=2)
-
-    if updated is not None:
-        display.text("{0}Z".format(updated), WIDTH - 56, 4, scale=1)
 
     if stale_marker:
         display.text(stale_marker, WIDTH - 56, HEIGHT - 8, scale=1)
