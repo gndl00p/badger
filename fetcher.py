@@ -171,8 +171,13 @@ def _parse(payload, station):
     }
 
 
-def fetch(cfg, last_data):
-    station = getattr(cfg, "METAR_STATION", "KLBB")
+def fetch(cfg, last_data, station=None):
+    if station is None:
+        stations = getattr(cfg, "METAR_STATIONS", None)
+        if stations:
+            station = stations[0]
+        else:
+            station = getattr(cfg, "METAR_STATION", "KLBB")
 
     if not _connect_wifi(cfg):
         if last_data is not None:

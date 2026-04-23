@@ -8,8 +8,52 @@ def _cfg():
     return SimpleNamespace(
         WIFI_SSID="net",
         WIFI_PSK="pw",
-        METAR_STATION="KLBB",
+        METAR_STATIONS=["KLBB"],
     )
+
+
+def test_fetch_uses_explicit_station_arg(monkeypatch):
+    wlan = MagicMock()
+    wlan.isconnected.return_value = True
+    monkeypatch.setattr(fetcher, "_make_wlan", lambda: wlan)
+    captured = {}
+
+    def spy(station):
+        captured["station"] = station
+        r = MagicMock(status_code=200)
+        r.json.return_value = [{"icaoId": station, "temp": 10, "wdir": 0,
+                                "wspd": 0, "visib": "10", "rawOb": "",
+                                "clouds": [], "reportTime": "2026-04-23T10:00:00Z"}]
+        return r
+
+    monkeypatch.setattr(fetcher, "_http_get_metar", spy)
+
+    _, _ = fetcher.fetch(_cfg(), last_data=None, station="KAUS")
+    assert captured["station"] == "KAUS"
+
+
+def test_fetch_default_station_from_stations_list(monkeypatch):
+    wlan = MagicMock()
+    wlan.isconnected.return_value = True
+    monkeypatch.setattr(fetcher, "_make_wlan", lambda: wlan)
+    captured = {}
+
+    def spy(station):
+        captured["station"] = station
+        r = MagicMock(status_code=200)
+        r.json.return_value = [{"icaoId": station, "temp": 10, "wdir": 0,
+                                "wspd": 0, "visib": "10", "rawOb": "",
+                                "clouds": [], "reportTime": "2026-04-23T10:00:00Z"}]
+        return r
+
+    monkeypatch.setattr(fetcher, "_http_get_metar", spy)
+
+    cfg = SimpleNamespace(
+        WIFI_SSID="n", WIFI_PSK="p",
+        METAR_STATIONS=["KDFW", "KLBB"],
+    )
+    fetcher.fetch(cfg, last_data=None)
+    assert captured["station"] == "KDFW"
 
 
 def _metar_payload():

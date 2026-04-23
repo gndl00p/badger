@@ -111,21 +111,26 @@ Evaluated top-to-bottom — a 700 ft ceiling wins over 10 SM visibility.
 
 ## Configuration (`config.py`)
 
-| Field              | Purpose                                                      |
-| ------------------ | ------------------------------------------------------------ |
-| `WIFI_SSID`        | 2.4 GHz network the Pico W joins                             |
-| `WIFI_PSK`         | Pre-shared key                                               |
-| `METAR_STATION`    | ICAO airport identifier (`KLBB`, `KAUS`, `EGLL`, `YSSY`, …) |
-| `REFRESH_MINUTES`  | How often to re-fetch. METARs update hourly — 15 is polite. |
+| Field              | Purpose                                                           |
+| ------------------ | ----------------------------------------------------------------- |
+| `WIFI_SSID`        | 2.4 GHz network the Pico W joins                                  |
+| `WIFI_PSK`         | Pre-shared key                                                    |
+| `METAR_STATIONS`   | List of ICAO identifiers, e.g. `["KLBB", "KAUS", "EGLL"]`         |
+| `METAR_STATION`    | (legacy, single identifier) — used when `METAR_STATIONS` is unset |
+| `REFRESH_MINUTES`  | How often to re-fetch. METARs update hourly — 15 is polite.       |
 
 ## Buttons
 
-| Button | Action               |
-| ------ | -------------------- |
-| A      | Force refresh        |
-| B / C  | Reserved for future  |
-| UP     | LED off              |
-| DOWN   | `halt()` (LiPo only) |
+| Button | Action                                              |
+| ------ | --------------------------------------------------- |
+| A      | Force refresh of the current station                |
+| B      | Previous station in `METAR_STATIONS`                |
+| C      | Next station in `METAR_STATIONS` (wraps)            |
+| UP     | LED off                                             |
+| DOWN   | `halt()` (LiPo only)                                |
+
+Selected station index is persisted in `/state.json`, so a reboot
+brings the same airport back up.
 
 ## Repository layout
 
