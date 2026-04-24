@@ -66,9 +66,85 @@ def _metar_payload():
         "wspd": 5,
         "wgst": 15,
         "visib": "10+",
+        "altim": 1015.0,
         "rawOb": "KLBB 232200Z 20005G15KT 10SM FEW050 30/M04 A2998",
         "clouds": [{"cover": "FEW", "base": 5000}],
     }]
+
+
+def test_computes_da_pa_dewpoint_spread(monkeypatch):
+    wlan = MagicMock()
+    wlan.isconnected.return_value = True
+    monkeypatch.setattr(fetcher, "_make_wlan", lambda: wlan)
+    response = MagicMock(status_code=200)
+    response.json.return_value = _metar_payload()
+    monkeypatch.setattr(fetcher, "_http_get_metar", lambda station: response)
+    monkeypatch.setattr(fetcher, "_elevation_ft", lambda station: 3282)
+
+    data, _ = fetcher.fetch(_cfg(), last_data=None)
+
+    # Pressure altitude: 3282 + (29.92 - 1015*0.02953)*1000
+    #                  = 3282 + (29.92 - 29.972) * 1000
+    #                  = 3282 + -52 ≈ 3230 (rounded)
+    assert data["pressure_altitude_ft"] is not None
+    assert 3200 <= data["pressure_altitude_ft"] <= 3260
+
+    # ISA at ~3230 = 15 - 6.46 = 8.54 C ; DA = PA + 120*(30-8.54) ≈ 3230 + 2575 ≈ 5805
+    assert data["density_altitude_ft"] is not None
+    assert 5700 <= data["density_altitude_ft"] <= 5900
+
+    assert data["altimeter_inhg"] is not None
+    assert 29.95 <= data["altimeter_inhg"] <= 30.00
+
+    # Dewpoint: -3.9 C → 25 F
+    assert data["dewpoint_f"] == 25
+
+    # Spread: 86 - 25 = 61
+    assert data["spread_f"] == 61
+
+    assert data["elevation_ft"] == 3282
+
+
+def test_elevation_cache_hit_avoids_second_call(monkeypatch):
+    calls = []
+
+    class R:
+        status_code = 200
+        def json(self):
+            return [{"icaoId": "KLBB", "elev": 1000}]
+        def close(self):
+            pass
+
+    def spy(station):
+        calls.append(station)
+        return R()
+
+    monkeypatch.setattr(fetcher, "_http_get_airport", spy)
+    # reset cache for this test
+    fetcher._elevation_cache.clear()
+
+    first = fetcher._elevation_ft("KLBB")
+    second = fetcher._elevation_ft("KLBB")
+    assert first == second
+    assert first == 3281  # 1000 m * 3.28084 ≈ 3281
+    assert calls == ["KLBB"]
+
+
+def test_da_omitted_when_elevation_unknown(monkeypatch):
+    wlan = MagicMock()
+    wlan.isconnected.return_value = True
+    monkeypatch.setattr(fetcher, "_make_wlan", lambda: wlan)
+    response = MagicMock(status_code=200)
+    response.json.return_value = _metar_payload()
+    monkeypatch.setattr(fetcher, "_http_get_metar", lambda station: response)
+    monkeypatch.setattr(fetcher, "_elevation_ft", lambda station: None)
+
+    data, _ = fetcher.fetch(_cfg(), last_data=None)
+    assert data["density_altitude_ft"] is None
+    assert data["pressure_altitude_ft"] is None
+    # Dewpoint + altim still work without elevation
+    assert data["altimeter_inhg"] is not None
+    assert data["dewpoint_f"] is not None
 
 
 def test_fetch_happy_path(monkeypatch):
@@ -79,6 +155,7 @@ def test_fetch_happy_path(monkeypatch):
     response = MagicMock(status_code=200)
     response.json.return_value = _metar_payload()
     monkeypatch.setattr(fetcher, "_http_get_metar", lambda station: response)
+    monkeypatch.setattr(fetcher, "_elevation_ft", lambda station: 3282)
 
     data, marker = fetcher.fetch(_cfg(), last_data=None)
 

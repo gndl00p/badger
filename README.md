@@ -20,17 +20,23 @@ identifier, and it runs.
 ## Display
 
 ```
- +-----------------------------------------------+
+ +------------------------------------------------+
  |                                                |
  |   86F                     VFR                  |
  |                                                |
- |                          last updated 22:00Z   |
- |  --------------------------------------------- |
- |   KLBB    vis 10SM                             |
+ |                           last updated 22:00Z  |
+ |  ----------------------------------------------|
+ |   KLBB    vis 10SM    DA5600                   |
  |   200 5kt G15                                  |
  |   FEW050                                       |
- +-----------------------------------------------+
+ +------------------------------------------------+
 ```
+
+The **DA** value is the current density altitude in feet, computed from
+the station elevation + altimeter setting + observed temperature. It's
+what your airplane thinks the air feels like for takeoff performance.
+Press **B** for a full details page (altimeter, dewpoint, temp/dew
+spread, DA + PA, plus the raw METAR text).
 
 - Big temp (Fahrenheit) top-left.
 - Big flight category top-right.
@@ -165,11 +171,15 @@ you can tell at a glance that the firmware is still running.
 | A          | Refresh the status readings (battery, Wi-Fi, etc.)         |
 | B          | Return to main screen                                      |
 
-### Raw METAR page
+### Details page (raw METAR + derived values)
 
 | Button     | Action                                                     |
 | ---------- | ---------------------------------------------------------- |
 | B          | Return to main screen                                      |
+
+Shows altimeter setting (inHg), dewpoint (°F), temp/dew spread (°F),
+density altitude, pressure altitude, and the raw METAR line straight
+from `aviationweather.gov`.
 
 ## Repository layout
 

@@ -50,6 +50,9 @@ def render(display, weather, stale_marker=None):
             line1 += "  vis {0}SM".format(int(vis))
         else:
             line1 += "  vis {0}SM".format(vis)
+    da = w.get("density_altitude_ft")
+    if da is not None:
+        line1 += "  DA{0}".format(da)
     display.text(line1, 8, 72, scale=2)
 
     display.text(wind, 8, 90, scale=2)

@@ -13,6 +13,7 @@ _WEATHER = {
     "ceiling_ft": None,
     "raw": "KLBB 232200Z 20005G15KT 10SM FEW050 30/M04 A2998",
     "updated_z": "22:00",
+    "density_altitude_ft": 5800,
     "stale": False,
 }
 
@@ -38,6 +39,23 @@ def test_renders_visibility():
     d = FakeDisplay()
     render(d, _WEATHER)
     assert "10SM" in " ".join(d.texts())
+
+
+def test_renders_density_altitude_on_station_line():
+    d = FakeDisplay()
+    render(d, _WEATHER)
+    station_lines = [args[0] for name, args in d.calls if name == "text" and "KLBB" in args[0]]
+    assert station_lines
+    assert "DA5800" in station_lines[0]
+
+
+def test_no_da_when_unknown():
+    d = FakeDisplay()
+    w = dict(_WEATHER)
+    w["density_altitude_ft"] = None
+    render(d, w)
+    texts = " ".join(d.texts())
+    assert "DA" not in texts
 
 
 def test_renders_last_updated_stamp():

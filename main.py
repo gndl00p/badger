@@ -140,7 +140,7 @@ def run(state_path="/state.json"):
             elif _pressed(display, "BUTTON_B"):
                 view = "raw"
                 saved = load_state(state_path).get("last_data") or {}
-                render_raw(display, saved.get("raw") or "")
+                render_raw(display, saved)
                 _wait_release(display, "BUTTON_B")
             elif _pressed(display, "BUTTON_C"):
                 view = "status"

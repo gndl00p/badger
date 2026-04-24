@@ -14,6 +14,10 @@ except ImportError:
 _WIFI_TIMEOUT_S = 15.0
 _HTTP_TIMEOUT_S = 8.0
 
+# aviationweather.gov airport API returns elevation in metres; cache per ICAO
+# for the session so we don't re-hit the endpoint on every refresh.
+_elevation_cache = {}
+
 
 def _make_wlan():
     return network.WLAN(network.STA_IF)
@@ -35,6 +39,56 @@ def _connect_wifi(cfg):
 def _http_get_metar(station):
     url = "https://aviationweather.gov/api/data/metar?ids={0}&format=json".format(station)
     return requests.get(url, timeout=_HTTP_TIMEOUT_S)
+
+
+def _http_get_airport(station):
+    url = "https://aviationweather.gov/api/data/airport?ids={0}&format=json".format(station)
+    return requests.get(url, timeout=_HTTP_TIMEOUT_S)
+
+
+def _elevation_ft(station):
+    if station in _elevation_cache:
+        return _elevation_cache[station]
+    try:
+        r = _http_get_airport(station)
+        if r.status_code != 200:
+            r.close()
+            return None
+        try:
+            data = r.json()
+        except Exception:
+            r.close()
+            return None
+        r.close()
+        if not data:
+            return None
+        elev_m = data[0].get("elev")
+        if elev_m is None:
+            return None
+        ft = int(round(float(elev_m) * 3.28084))
+        _elevation_cache[station] = ft
+        return ft
+    except Exception:
+        return None
+
+
+def _altim_mb_to_inhg(mb):
+    if mb is None:
+        return None
+    return float(mb) * 0.02953
+
+
+def _pressure_altitude_ft(elev_ft, altim_inhg):
+    if elev_ft is None or altim_inhg is None:
+        return None
+    return int(round(elev_ft + (29.92 - altim_inhg) * 1000))
+
+
+def _density_altitude_ft(pa_ft, oat_c):
+    if pa_ft is None or oat_c is None:
+        return None
+    isa_c = 15 - 2 * (pa_ft / 1000.0)
+    return int(round(pa_ft + 120 * (oat_c - isa_c)))
 
 
 def _c_to_f(c):
@@ -144,21 +198,38 @@ _EMPTY = {
     "ceiling_ft": None,
     "raw": None,
     "updated_z": None,
+    "altimeter_inhg": None,
+    "dewpoint_f": None,
+    "spread_f": None,
+    "density_altitude_ft": None,
+    "pressure_altitude_ft": None,
+    "elevation_ft": None,
     "stale": False,
 }
 
 
-def _parse(payload, station):
+def _parse(payload, station, elev_ft):
     if not payload:
         out = dict(_EMPTY)
         out["station"] = station
+        out["elevation_ft"] = elev_ft
         out["stale"] = True
         return out
     m = payload[0]
     vis_sm = _parse_vis(m.get("visib"))
     ceiling = _ceiling_ft(m.get("clouds"))
+    temp_c = m.get("temp")
+    dewp_c = m.get("dewp")
+    altim_inhg = _altim_mb_to_inhg(m.get("altim"))
+    pa_ft = _pressure_altitude_ft(elev_ft, altim_inhg)
+    da_ft = _density_altitude_ft(pa_ft, temp_c)
+    temp_f = _c_to_f(temp_c)
+    dewp_f = _c_to_f(dewp_c)
+    spread_f = None
+    if temp_f is not None and dewp_f is not None:
+        spread_f = temp_f - dewp_f
     return {
-        "temp_f": _c_to_f(m.get("temp")),
+        "temp_f": temp_f,
         "summary": _summarize_clouds(m.get("clouds")),
         "flight_category": _flight_category(ceiling, vis_sm),
         "station": m.get("icaoId") or station,
@@ -167,6 +238,12 @@ def _parse(payload, station):
         "ceiling_ft": ceiling,
         "raw": m.get("rawOb"),
         "updated_z": _report_hhmm(m.get("reportTime")),
+        "altimeter_inhg": round(altim_inhg, 2) if altim_inhg is not None else None,
+        "dewpoint_f": dewp_f,
+        "spread_f": spread_f,
+        "density_altitude_ft": da_ft,
+        "pressure_altitude_ft": pa_ft,
+        "elevation_ft": elev_ft,
         "stale": False,
     }
 
@@ -208,7 +285,7 @@ def fetch(cfg, last_data, station=None):
             out["station"] = station
             out["stale"] = True
             return out, "bad payload"
-        return _parse(payload, station), None
+        return _parse(payload, station, _elevation_ft(station)), None
     except Exception:
         if last_data is not None:
             return _stale_copy(last_data), "offline"
