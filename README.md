@@ -153,6 +153,9 @@ Evaluated top-to-bottom — a 700 ft ceiling wins over 10 SM visibility.
 The selected station is persisted in `/state.json`, so a reboot comes
 back to the last airport you chose.
 
+The on-board LED briefly pulses every 20 seconds as a heartbeat, so
+you can tell at a glance that the firmware is still running.
+
 ### Status page
 
 | Button     | Action                                                     |

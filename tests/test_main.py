@@ -137,3 +137,55 @@ def test_set_speed_forwards_to_display():
     main._set_speed(d, main._UPDATE_TURBO)
     speeds = [args[0] for name, args in d.calls if name == "set_update_speed"]
     assert speeds == [3]
+
+
+def test_heartbeat_fires_at_interval():
+    hb = main.Heartbeat(interval=20.0, duration=0.1, brightness=50)
+    d = FakeDisplay()
+
+    # t=0 initial — no blink yet (last=0, now-last = 0 < 20)
+    hb.tick(d, 0.0)
+    leds = [args[0] for name, args in d.calls if name == "led"]
+    assert leds == []
+
+    # t=21 — above interval, blink on
+    hb.tick(d, 21.0)
+    leds = [args[0] for name, args in d.calls if name == "led"]
+    assert leds == [50]
+    assert hb.on is True
+
+    # t=21.05 — still within duration, no change
+    hb.tick(d, 21.05)
+    leds = [args[0] for name, args in d.calls if name == "led"]
+    assert leds == [50]
+
+    # t=21.2 — past duration, LED off
+    hb.tick(d, 21.2)
+    leds = [args[0] for name, args in d.calls if name == "led"]
+    assert leds == [50, 0]
+    assert hb.on is False
+
+
+def test_heartbeat_fires_again_after_interval():
+    hb = main.Heartbeat(interval=20.0, duration=0.1, brightness=40)
+    d = FakeDisplay()
+
+    hb.tick(d, 20.0)    # first blink on
+    hb.tick(d, 20.2)    # off
+    hb.tick(d, 30.0)    # not yet (interval from last=20, need >= 40)
+    assert hb.on is False
+
+    hb.tick(d, 40.0)    # 20s since last, blink again
+    assert hb.on is True
+    leds = [args[0] for name, args in d.calls if name == "led"]
+    assert leds.count(40) == 2
+
+
+def test_heartbeat_survives_missing_led_method():
+    class NoLed:
+        pass
+
+    hb = main.Heartbeat(interval=1.0, duration=0.1, brightness=50)
+    hb.tick(NoLed(), 2.0)   # would turn on, display.led missing
+    hb.tick(NoLed(), 2.2)   # would turn off, display.led missing
+    # No exception = pass

@@ -19,12 +19,47 @@ _POLL_INTERVAL = 0.05
 _UPDATE_NORMAL = 0
 _UPDATE_TURBO = 3
 
+_HEARTBEAT_INTERVAL_S = 20.0
+_HEARTBEAT_DURATION_S = 0.08
+_HEARTBEAT_BRIGHTNESS = 60
+
 
 def _set_speed(display, speed):
     try:
         display.set_update_speed(speed)
     except Exception:
         pass
+
+
+class Heartbeat:
+    """Periodic LED blink so the owner can see the firmware is still alive."""
+
+    def __init__(self, interval=_HEARTBEAT_INTERVAL_S, duration=_HEARTBEAT_DURATION_S,
+                 brightness=_HEARTBEAT_BRIGHTNESS):
+        self.interval = interval
+        self.duration = duration
+        self.brightness = brightness
+        self.last = 0.0
+        self.on_until = 0.0
+        self.on = False
+
+    def tick(self, display, now):
+        if self.on:
+            if now >= self.on_until:
+                try:
+                    display.led(0)
+                except Exception:
+                    pass
+                self.on = False
+            return
+        if now - self.last >= self.interval:
+            try:
+                display.led(self.brightness)
+            except Exception:
+                pass
+            self.on = True
+            self.on_until = now + self.duration
+            self.last = now
 
 
 def _stations(cfg):
@@ -92,8 +127,11 @@ def run(state_path="/state.json"):
     last_tick = time.time()
     view = "main"
     cursor = station_index
+    heartbeat = Heartbeat()
 
     while True:
+        heartbeat.tick(display, time.time())
+
         if view == "main":
             if _pressed(display, "BUTTON_A"):
                 _cycle(display, cfg, state_path, station_index)
