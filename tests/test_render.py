@@ -134,6 +134,52 @@ def test_no_arrow_when_wind_deg_missing():
     assert len(lines) == 1
 
 
+def test_renders_crosswind_headwind_on_clouds_line():
+    d = FakeDisplay()
+    w = dict(_WEATHER, headwind_kt=12, crosswind_kt=5, crosswind_side="L")
+    render(d, w)
+    clouds_lines = [args[0] for name, args in d.calls if name == "text" and "FEW" in args[0]]
+    assert clouds_lines
+    assert "HW12 XW5L" in clouds_lines[0]
+
+
+def test_no_crosswind_when_runway_not_configured():
+    d = FakeDisplay()
+    render(d, _WEATHER)
+    clouds_lines = [args[0] for name, args in d.calls if name == "text" and "FEW" in args[0]]
+    assert clouds_lines
+    assert "HW" not in clouds_lines[0]
+
+
+def test_night_inverts_colors():
+    d = FakeDisplay()
+    w = dict(_WEATHER, updated_hour_local=23)
+    render(d, w)
+    # First pen call after clear is BLACK background → 0 is set first (rectangle fill bg)
+    pens = [args[0] for name, args in d.calls if name == "set_pen"]
+    # Background = BLACK (0) in night mode, then foreground WHITE (15)
+    assert pens[0] == 0
+    assert 15 in pens
+
+
+def test_day_normal_colors():
+    d = FakeDisplay()
+    w = dict(_WEATHER, updated_hour_local=14)
+    render(d, w)
+    pens = [args[0] for name, args in d.calls if name == "set_pen"]
+    # Background = WHITE (15) in day mode, then foreground BLACK (0)
+    assert pens[0] == 15
+    assert 0 in pens
+
+
+def test_explicit_invert_wins():
+    d = FakeDisplay()
+    w = dict(_WEATHER, updated_hour_local=14)
+    render(d, w, invert=True)
+    pens = [args[0] for name, args in d.calls if name == "set_pen"]
+    assert pens[0] == 0
+
+
 def test_renders_last_updated_stamp():
     d = FakeDisplay()
     render(d, _WEATHER)

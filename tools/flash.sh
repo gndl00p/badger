@@ -15,6 +15,7 @@ $MP cp "$HERE/picker.py"  :picker.py
 $MP cp "$HERE/status.py"  :status.py
 $MP cp "$HERE/raw.py"     :raw.py
 $MP cp "$HERE/splash.py"  :splash.py
+$MP cp "$HERE/taf.py"     :taf.py
 $MP cp "$HERE/store.py"   :store.py
 
 if [ ! -f "$HERE/config.py" ]; then

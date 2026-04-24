@@ -5,12 +5,13 @@ except ImportError:
 
 import time
 
-from fetcher import fetch
+from fetcher import fetch, fetch_taf
 from render import render as render_weather
 from picker import render as render_picker
 from status import render as render_status
 from raw import render as render_raw
 from splash import render as render_splash
+from taf import render as render_taf
 from status import _battery_v
 from store import load as load_state
 from store import save as save_state
@@ -240,6 +241,14 @@ def run(state_path="/state.json"):
                 render_status(display, current_station, saved.get("updated_z"))
                 _wait_release(display, "BUTTON_A")
         elif view == "raw":
+            if _pressed(display, "BUTTON_B"):
+                # Second B press from the details page → TAF view.
+                view = "taf"
+                current_station = stations[station_index]
+                raw_taf = fetch_taf(current_station)
+                render_taf(display, raw_taf, station=current_station)
+                _wait_release(display, "BUTTON_B")
+        elif view == "taf":
             if _pressed(display, "BUTTON_B"):
                 view = "main"
                 marker = _cycle(display, cfg, state_path, station_index)

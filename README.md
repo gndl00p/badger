@@ -32,10 +32,17 @@ identifier, and it runs.
  +------------------------------------------------+
 ```
 
-Lines 1-2: big temp (°F) + flight category; small `last updated` time
-in Zulu. Line 3: station, visibility, density altitude. Line 4: wind
-(direction / speed / gust) and temperature/dewpoint (°F). Line 5: cloud
-layers in METAR short form.
+Lines 1-2: big temp (°F) + flight category (inverted block for IFR /
+LIFR); small `last updated` time in Zulu; wind rose arrow pointing
+where the wind is going. Line 3: station, visibility, density altitude.
+Line 4: wind (direction / speed / gust) and temperature/dewpoint (°F).
+Line 5: cloud layers in METAR short form, plus a headwind/crosswind
+readout if a runway is configured for this station. Bottom-right: local
+sunrise / sunset times.
+
+**Dark mode overnight:** between 22:00 and 06:00 local time (via
+`TIMEZONE_OFFSET`), the whole panel inverts — black background with
+white foreground — so it isn't blasting light across a desk at night.
 
 The **DA** value is the current density altitude in feet, computed from
 the station elevation + altimeter setting + observed temperature. It's
@@ -137,13 +144,14 @@ Evaluated top-to-bottom — a 700 ft ceiling wins over 10 SM visibility.
 
 | Field              | Purpose                                                           |
 | ------------------ | ----------------------------------------------------------------- |
-| `WIFI_SSID`          | 2.4 GHz network the Pico W joins                                  |
-| `WIFI_PSK`           | Pre-shared key                                                    |
-| `METAR_STATIONS`     | List of ICAO identifiers, e.g. `["KLBB", "KAUS", "EGLL"]`         |
-| `METAR_STATION`      | (legacy, single identifier) — used when `METAR_STATIONS` is unset |
-| `REFRESH_MINUTES`    | How often to re-fetch. METARs update hourly — 15 is polite.       |
-| `AUTO_CYCLE_MINUTES` | Rotate the displayed station every N minutes (0 disables).       |
-| `TIMEZONE_OFFSET`    | Hours from UTC for the sunrise/sunset display (-5 = CDT, +1 = CET). |
+| `WIFI_SSID`          | 2.4 GHz network the Pico W joins                                     |
+| `WIFI_PSK`           | Pre-shared key                                                       |
+| `METAR_STATIONS`     | List of ICAO identifiers, e.g. `["KLBB", "KAUS", "EGLL"]`            |
+| `METAR_STATION`      | (legacy, single identifier) — used when `METAR_STATIONS` is unset    |
+| `REFRESH_MINUTES`    | How often to re-fetch. METARs update hourly — 15 is polite.          |
+| `AUTO_CYCLE_MINUTES` | Rotate the displayed station every N minutes (0 disables).          |
+| `TIMEZONE_OFFSET`    | Hours from UTC for the sunrise/sunset display + dark mode (-5 = CDT, +1 = CET). |
+| `RUNWAYS`            | Per-station primary runway heading in °, e.g. `{"KLBB": 170}` — adds headwind/crosswind readout on the clouds line. |
 
 ## Buttons
 
@@ -182,11 +190,22 @@ you can tell at a glance that the firmware is still running.
 
 | Button     | Action                                                     |
 | ---------- | ---------------------------------------------------------- |
-| B          | Return to main screen                                      |
+| B          | Advance to the **TAF** page                                |
 
 Shows altimeter setting (inHg), dewpoint (°F), temp/dew spread (°F),
 density altitude, pressure altitude, and the raw METAR line straight
 from `aviationweather.gov`.
+
+### TAF page (terminal forecast)
+
+| Button     | Action                                                     |
+| ---------- | ---------------------------------------------------------- |
+| B          | Return to main screen                                      |
+
+Fetches the TAF for the current station from
+`aviationweather.gov/api/data/taf` and word-wraps the raw forecast
+line on-screen. Useful for "what's the weather going to do over the
+next 4–12 hours?" at a glance.
 
 ## Repository layout
 

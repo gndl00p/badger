@@ -158,6 +158,101 @@ def test_wind_deg_numeric_when_not_vrb(monkeypatch):
     assert data["wind_deg"] == 200
 
 
+def test_crosswind_components_left_wind():
+    # Runway 170, wind from 140 @ 10 kt → 30° left of runway
+    hw, xw, side = fetcher._crosswind_components(140, 10, 170)
+    assert hw == 9        # ~10 * cos(30°)
+    assert xw == 5        # ~10 * |sin(30°)|
+    assert side == "L"
+
+
+def test_crosswind_components_right_wind():
+    # Runway 170, wind from 200 @ 10 kt → 30° right of runway
+    hw, xw, side = fetcher._crosswind_components(200, 10, 170)
+    assert hw == 9
+    assert xw == 5
+    assert side == "R"
+
+
+def test_crosswind_components_pure_tailwind():
+    hw, xw, side = fetcher._crosswind_components(350, 10, 170)
+    assert hw == -10
+    assert xw == 0
+    assert side is None
+
+
+def test_crosswind_components_missing_inputs():
+    assert fetcher._crosswind_components(None, 10, 170) == (None, None, None)
+    assert fetcher._crosswind_components(200, None, 170) == (None, None, None)
+    assert fetcher._crosswind_components(200, 10, None) == (None, None, None)
+
+
+def test_crosswind_populated_when_runway_configured(monkeypatch):
+    wlan = MagicMock()
+    wlan.isconnected.return_value = True
+    monkeypatch.setattr(fetcher, "_make_wlan", lambda: wlan)
+    response = MagicMock(status_code=200)
+    response.json.return_value = _metar_payload()
+    monkeypatch.setattr(fetcher, "_http_get_metar", lambda station: response)
+    monkeypatch.setattr(fetcher, "_station_info", lambda station: None)
+
+    cfg = SimpleNamespace(
+        WIFI_SSID="n", WIFI_PSK="p",
+        METAR_STATIONS=["KLBB"],
+        RUNWAYS={"KLBB": 170},
+    )
+    data, _ = fetcher.fetch(cfg, last_data=None)
+    assert data["runway_heading_deg"] == 170
+    # Wind 200 on rwy 170 → right crosswind
+    assert data["crosswind_side"] == "R"
+    assert data["crosswind_kt"] is not None
+
+
+def test_updated_hour_local_applies_tz_offset(monkeypatch):
+    wlan = MagicMock()
+    wlan.isconnected.return_value = True
+    monkeypatch.setattr(fetcher, "_make_wlan", lambda: wlan)
+    response = MagicMock(status_code=200)
+    # reportTime at 22:00 UTC
+    response.json.return_value = [{
+        "icaoId": "KLBB", "reportTime": "2026-04-24T22:00:00.000Z",
+        "temp": 20, "wdir": 180, "wspd": 5,
+        "visib": "10", "rawOb": "", "clouds": [],
+    }]
+    monkeypatch.setattr(fetcher, "_http_get_metar", lambda station: response)
+    monkeypatch.setattr(fetcher, "_station_info", lambda station: None)
+
+    cfg = SimpleNamespace(
+        WIFI_SSID="n", WIFI_PSK="p",
+        METAR_STATIONS=["KLBB"],
+        TIMEZONE_OFFSET=-5,
+    )
+    data, _ = fetcher.fetch(cfg, last_data=None)
+    # 22 UTC + (-5) = 17 local
+    assert data["updated_hour_local"] == 17
+
+
+def test_fetch_taf_happy_path(monkeypatch):
+    r = MagicMock(status_code=200)
+    r.json.return_value = [{"rawTAF": "TAF KLBB 242330Z 2500/2524 21012KT P6SM SCT060"}]
+    monkeypatch.setattr(fetcher, "_http_get_taf", lambda station: r)
+    assert fetcher.fetch_taf("KLBB").startswith("TAF KLBB")
+
+
+def test_fetch_taf_error_returns_none(monkeypatch):
+    def boom(station):
+        raise OSError("boom")
+    monkeypatch.setattr(fetcher, "_http_get_taf", boom)
+    assert fetcher.fetch_taf("KLBB") is None
+
+
+def test_fetch_taf_empty_returns_none(monkeypatch):
+    r = MagicMock(status_code=200)
+    r.json.return_value = []
+    monkeypatch.setattr(fetcher, "_http_get_taf", lambda station: r)
+    assert fetcher.fetch_taf("KLBB") is None
+
+
 def test_da_omitted_when_elevation_unknown(monkeypatch):
     wlan = MagicMock()
     wlan.isconnected.return_value = True

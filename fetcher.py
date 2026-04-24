@@ -48,6 +48,31 @@ def _http_get_airport(station):
     return requests.get(url, timeout=_HTTP_TIMEOUT_S)
 
 
+def _http_get_taf(station):
+    url = "https://aviationweather.gov/api/data/taf?ids={0}&format=json".format(station)
+    return requests.get(url, timeout=_HTTP_TIMEOUT_S)
+
+
+def fetch_taf(station):
+    """Returns the raw TAF string for `station` or None on any failure."""
+    try:
+        r = _http_get_taf(station)
+        if r.status_code != 200:
+            r.close()
+            return None
+        try:
+            data = r.json()
+        except Exception:
+            r.close()
+            return None
+        r.close()
+        if not data:
+            return None
+        return data[0].get("rawTAF")
+    except Exception:
+        return None
+
+
 def _short_name(name):
     if not name:
         return None
@@ -224,6 +249,25 @@ def _format_wind(wdir, wspd, wgst):
     return base
 
 
+def _crosswind_components(wind_deg, wind_kt, runway_hdg_deg):
+    """Returns (headwind_kt, crosswind_kt, side) or (None, None, None).
+
+    side is "L" if wind is from the left of the runway, "R" from the right,
+    or None when there is essentially no crosswind.
+    """
+    if wind_deg is None or wind_kt is None or runway_hdg_deg is None:
+        return None, None, None
+    diff_deg = ((wind_deg - runway_hdg_deg) + 180) % 360 - 180
+    diff_rad = math.radians(diff_deg)
+    hw = int(round(wind_kt * math.cos(diff_rad)))
+    xw_signed = wind_kt * math.sin(diff_rad)
+    xw = int(round(abs(xw_signed)))
+    side = None
+    if xw > 0:
+        side = "R" if xw_signed > 0 else "L"
+    return hw, xw, side
+
+
 def _summarize_clouds(clouds):
     if not clouds:
         return "CLR"
@@ -267,10 +311,12 @@ _EMPTY = {
     "station_name": None,
     "wind": None,
     "wind_deg": None,
+    "wind_kt": None,
     "visibility_sm": None,
     "ceiling_ft": None,
     "raw": None,
     "updated_z": None,
+    "updated_hour_local": None,
     "altimeter_inhg": None,
     "dewpoint_f": None,
     "spread_f": None,
@@ -281,11 +327,15 @@ _EMPTY = {
     "lon": None,
     "sunrise_local": None,
     "sunset_local": None,
+    "runway_heading_deg": None,
+    "headwind_kt": None,
+    "crosswind_kt": None,
+    "crosswind_side": None,
     "stale": False,
 }
 
 
-def _parse(payload, station, info, tz_offset):
+def _parse(payload, station, info, tz_offset, runway_hdg_deg):
     elev_ft = info["elev_ft"] if info else None
     station_name = info["name"] if info else None
     lat = info["lat"] if info else None
@@ -298,6 +348,7 @@ def _parse(payload, station, info, tz_offset):
         out["elevation_ft"] = elev_ft
         out["lat"] = lat
         out["lon"] = lon
+        out["runway_heading_deg"] = runway_hdg_deg
         out["stale"] = True
         return out
     m = payload[0]
@@ -332,18 +383,37 @@ def _parse(payload, station, info, tz_offset):
     except Exception:
         wind_deg = None
 
+    wspd = m.get("wspd")
+    try:
+        wind_kt = int(wspd) if wspd is not None else None
+    except Exception:
+        wind_kt = None
+
+    hw, xw, xw_side = _crosswind_components(wind_deg, wind_kt, runway_hdg_deg)
+
+    updated_z = _report_hhmm(m.get("reportTime"))
+    updated_hour_local = None
+    if updated_z:
+        try:
+            hh_utc = int(updated_z.split(":")[0])
+            updated_hour_local = int((hh_utc + tz_offset) % 24)
+        except Exception:
+            updated_hour_local = None
+
     return {
         "temp_f": temp_f,
         "summary": _summarize_clouds(m.get("clouds")),
         "flight_category": _flight_category(ceiling, vis_sm),
         "station": m.get("icaoId") or station,
         "station_name": station_name,
-        "wind": _format_wind(wdir, m.get("wspd"), m.get("wgst")),
+        "wind": _format_wind(wdir, wspd, m.get("wgst")),
         "wind_deg": wind_deg,
+        "wind_kt": wind_kt,
         "visibility_sm": vis_sm,
         "ceiling_ft": ceiling,
         "raw": m.get("rawOb"),
-        "updated_z": _report_hhmm(m.get("reportTime")),
+        "updated_z": updated_z,
+        "updated_hour_local": updated_hour_local,
         "altimeter_inhg": round(altim_inhg, 2) if altim_inhg is not None else None,
         "dewpoint_f": dewp_f,
         "spread_f": spread_f,
@@ -354,6 +424,10 @@ def _parse(payload, station, info, tz_offset):
         "lon": lon,
         "sunrise_local": sunrise_local,
         "sunset_local": sunset_local,
+        "runway_heading_deg": runway_hdg_deg,
+        "headwind_kt": hw,
+        "crosswind_kt": xw,
+        "crosswind_side": xw_side,
         "stale": False,
     }
 
@@ -397,7 +471,9 @@ def fetch(cfg, last_data, station=None):
             return out, "bad payload"
         info = _station_info(station)
         tz_offset = getattr(cfg, "TIMEZONE_OFFSET", 0)
-        return _parse(payload, station, info, tz_offset), None
+        runways = getattr(cfg, "RUNWAYS", None) or {}
+        runway_hdg_deg = runways.get(station)
+        return _parse(payload, station, info, tz_offset, runway_hdg_deg), None
     except Exception:
         if last_data is not None:
             return _stale_copy(last_data), "offline"
