@@ -121,16 +121,32 @@ Evaluated top-to-bottom — a 700 ft ceiling wins over 10 SM visibility.
 
 ## Buttons
 
-| Button | Action                                              |
-| ------ | --------------------------------------------------- |
-| A      | Force refresh of the current station                |
-| B      | Previous station in `METAR_STATIONS`                |
-| C      | Next station in `METAR_STATIONS` (wraps)            |
-| UP     | LED off                                             |
-| DOWN   | `halt()` (LiPo only)                                |
+### Main screen (weather)
 
-Selected station index is persisted in `/state.json`, so a reboot
-brings the same airport back up.
+| Button     | Action                                                |
+| ---------- | ----------------------------------------------------- |
+| A, B       | Force refresh the current station                     |
+| C          | Open the **status** page (battery, Wi-Fi, station)    |
+| UP, DOWN   | Open the **station picker**                           |
+
+### Station picker
+
+| Button     | Action                                                |
+| ---------- | ----------------------------------------------------- |
+| UP         | Move cursor up (wraps)                                |
+| DOWN       | Move cursor down (wraps)                              |
+| A          | Select the highlighted station; return to main screen |
+| B          | Cancel; return to main screen                         |
+
+The selected station is persisted in `/state.json`, so a reboot comes
+back to the last airport you chose.
+
+### Status page
+
+| Button     | Action                                                |
+| ---------- | ----------------------------------------------------- |
+| A          | Refresh the status readings (battery, Wi-Fi, etc.)    |
+| B          | Return to main screen                                 |
 
 ## Repository layout
 

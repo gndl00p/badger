@@ -11,6 +11,8 @@ echo "Flashing to $DEVICE from $HERE"
 $MP cp "$HERE/main.py"    :main.py
 $MP cp "$HERE/fetcher.py" :fetcher.py
 $MP cp "$HERE/render.py"  :render.py
+$MP cp "$HERE/picker.py"  :picker.py
+$MP cp "$HERE/status.py"  :status.py
 $MP cp "$HERE/store.py"   :store.py
 
 if [ ! -f "$HERE/config.py" ]; then

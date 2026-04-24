@@ -17,5 +17,11 @@ class WLAN:
     def isconnected(self):
         return self._connected
 
+    def ifconfig(self):
+        return ("0.0.0.0", "0.0.0.0", "0.0.0.0", "0.0.0.0")
+
+    def status(self, what=None):
+        return 0
+
     def disconnect(self):
         self._connected = False

@@ -6,7 +6,9 @@ except ImportError:
 import time
 
 from fetcher import fetch
-from render import render
+from render import render as render_weather
+from picker import render as render_picker
+from status import render as render_status
 from store import load as load_state
 from store import save as save_state
 
@@ -56,7 +58,7 @@ def _cycle(display, cfg, state_path, station_index):
     state = load_state(state_path)
     last = state.get("last_data")
     data, marker = fetch(cfg, last, station=station)
-    render(display, data if data is not None else last, marker)
+    render_weather(display, data if data is not None else last, marker)
     if data is not None and marker is None:
         save_state(state_path, {"station_index": station_index, "last_data": data})
 
@@ -77,27 +79,63 @@ def run(state_path="/state.json"):
 
     refresh_s = getattr(cfg, "REFRESH_MINUTES", 15) * 60
     last_tick = time.time()
+    view = "main"
+    cursor = station_index
+
     while True:
-        if _pressed(display, "BUTTON_A"):
-            _cycle(display, cfg, state_path, station_index)
-            last_tick = time.time()
-            _wait_release(display, "BUTTON_A")
-            continue
-        if _pressed(display, "BUTTON_B"):
-            station_index = (station_index - 1) % len(stations)
-            _cycle(display, cfg, state_path, station_index)
-            last_tick = time.time()
-            _wait_release(display, "BUTTON_B")
-            continue
-        if _pressed(display, "BUTTON_C"):
-            station_index = (station_index + 1) % len(stations)
-            _cycle(display, cfg, state_path, station_index)
-            last_tick = time.time()
-            _wait_release(display, "BUTTON_C")
-            continue
-        if time.time() - last_tick >= refresh_s:
-            _cycle(display, cfg, state_path, station_index)
-            last_tick = time.time()
+        if view == "main":
+            if _pressed(display, "BUTTON_A") or _pressed(display, "BUTTON_B"):
+                _cycle(display, cfg, state_path, station_index)
+                last_tick = time.time()
+                _wait_release(display, "BUTTON_A")
+                _wait_release(display, "BUTTON_B")
+            elif _pressed(display, "BUTTON_C"):
+                view = "status"
+                current_station = stations[station_index]
+                saved = load_state(state_path).get("last_data") or {}
+                render_status(display, current_station, saved.get("updated_z"))
+                _wait_release(display, "BUTTON_C")
+            elif _pressed(display, "BUTTON_UP") or _pressed(display, "BUTTON_DOWN"):
+                cursor = station_index
+                view = "list"
+                render_picker(display, stations, cursor, station_index)
+                for attr in ("BUTTON_UP", "BUTTON_DOWN"):
+                    _wait_release(display, attr)
+            elif time.time() - last_tick >= refresh_s:
+                _cycle(display, cfg, state_path, station_index)
+                last_tick = time.time()
+        elif view == "list":
+            if _pressed(display, "BUTTON_UP"):
+                cursor = (cursor - 1) % len(stations)
+                render_picker(display, stations, cursor, station_index)
+                _wait_release(display, "BUTTON_UP")
+            elif _pressed(display, "BUTTON_DOWN"):
+                cursor = (cursor + 1) % len(stations)
+                render_picker(display, stations, cursor, station_index)
+                _wait_release(display, "BUTTON_DOWN")
+            elif _pressed(display, "BUTTON_A"):
+                station_index = cursor
+                view = "main"
+                _cycle(display, cfg, state_path, station_index)
+                last_tick = time.time()
+                _wait_release(display, "BUTTON_A")
+            elif _pressed(display, "BUTTON_B"):
+                view = "main"
+                _cycle(display, cfg, state_path, station_index)
+                _wait_release(display, "BUTTON_B")
+        elif view == "status":
+            if _pressed(display, "BUTTON_B"):
+                view = "main"
+                _cycle(display, cfg, state_path, station_index)
+                last_tick = time.time()
+                _wait_release(display, "BUTTON_B")
+            elif _pressed(display, "BUTTON_A"):
+                # Refresh the status page itself.
+                current_station = stations[station_index]
+                saved = load_state(state_path).get("last_data") or {}
+                render_status(display, current_station, saved.get("updated_z"))
+                _wait_release(display, "BUTTON_A")
+
         time.sleep(_POLL_INTERVAL)
 
 
