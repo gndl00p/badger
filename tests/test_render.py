@@ -134,21 +134,45 @@ def test_no_arrow_when_wind_deg_missing():
     assert len(lines) == 1
 
 
-def test_renders_crosswind_headwind_on_clouds_line():
+def test_renders_runway_line_when_configured():
     d = FakeDisplay()
-    w = dict(_WEATHER, headwind_kt=12, crosswind_kt=5, crosswind_side="L")
+    w = dict(_WEATHER, runway_heading_deg=170, headwind_kt=12,
+             crosswind_kt=5, crosswind_side="L")
+    render(d, w)
+    texts = [args[0] for name, args in d.calls if name == "text"]
+    rwy_lines = [t for t in texts if t.startswith("RWY")]
+    assert rwy_lines
+    assert "RWY 17" in rwy_lines[0]
+    assert "HW 12" in rwy_lines[0]
+    assert "XW 5L" in rwy_lines[0]
+
+
+def test_no_runway_line_when_not_configured():
+    d = FakeDisplay()
+    render(d, _WEATHER)
+    rwy_lines = [args[0] for name, args in d.calls if name == "text" and args[0].startswith("RWY")]
+    assert not rwy_lines
+
+
+def test_runway_number_pads_under_ten():
+    d = FakeDisplay()
+    w = dict(_WEATHER, runway_heading_deg=80, headwind_kt=10,
+             crosswind_kt=2, crosswind_side="R")
+    render(d, w)
+    rwy_lines = [args[0] for name, args in d.calls if name == "text" and args[0].startswith("RWY")]
+    assert rwy_lines
+    assert "RWY 08" in rwy_lines[0]
+
+
+def test_clouds_line_has_no_crosswind():
+    d = FakeDisplay()
+    w = dict(_WEATHER, runway_heading_deg=170, headwind_kt=12,
+             crosswind_kt=5, crosswind_side="L")
     render(d, w)
     clouds_lines = [args[0] for name, args in d.calls if name == "text" and "FEW" in args[0]]
     assert clouds_lines
-    assert "HW12 XW5L" in clouds_lines[0]
-
-
-def test_no_crosswind_when_runway_not_configured():
-    d = FakeDisplay()
-    render(d, _WEATHER)
-    clouds_lines = [args[0] for name, args in d.calls if name == "text" and "FEW" in args[0]]
-    assert clouds_lines
     assert "HW" not in clouds_lines[0]
+    assert "XW" not in clouds_lines[0]
 
 
 def test_night_inverts_colors():
