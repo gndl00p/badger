@@ -1,6 +1,6 @@
 [project]
 name = "skyglance"
-version = "0.2.0"
+version = "0.3.0"
 description = "Pimoroni Badger 2040 W METAR-driven aviation weather display"
 requires-python = ">=3.11"
 

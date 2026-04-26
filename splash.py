@@ -4,7 +4,7 @@ WIDTH = 296
 HEIGHT = 128
 
 
-def render(display, version="v0.2.0"):
+def render(display, version="v0.3.0"):
     try:
         display.set_update_speed(0)
     except Exception:

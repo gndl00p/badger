@@ -21,24 +21,36 @@ identifier, and it runs.
 
 ```
  +------------------------------------------------+
+ | KLBB Lubbock                          22:00Z   |  ← header
+ | -----------------------------------------------|
  |                                                |
- |   86F                     VFR                  |
+ |   91F                          VFR             |  ← hero
  |                                                |
- |                           last updated 22:00Z  |
- |  ----------------------------------------------|
- |   KLBB    vis 10SM    DA5600                   |
- |   200 5kt G15    86/46                         |
- |   FEW050                                       |
+ | -----------------------------------------------|
+ | WIND 200 5kt G15  91/46                        |  ← scale-2 body
+ | CLD FEW050  vis 10SM                           |
+ | ALT 29.92  DA 6572                             |
  +------------------------------------------------+
 ```
 
-Lines 1-2: big temp (°F) + flight category (inverted block for IFR /
-LIFR); small `last updated` time in Zulu; wind rose arrow pointing
-where the wind is going. Line 3: station, visibility, density altitude.
-Line 4: wind (direction / speed / gust) and temperature/dewpoint (°F).
-Line 5: cloud layers in METAR short form, plus a headwind/crosswind
-readout if a runway is configured for this station. Bottom-right: local
-sunrise / sunset times.
+Three zones, all readable at desk distance:
+
+- **Header** (scale 1): ICAO code + city name on the left, observation
+  Zulu time on the right.
+- **Hero** (scale 5): big Fahrenheit temperature, big flight category.
+  IFR / LIFR render as a white-on-black inverted block — instant
+  visual cue conditions are bad.
+- **Body** (scale 2): three labeled rows
+  - `WIND` direction / speed / gust + `temp/dewpoint` pair
+  - `CLD` cloud layers in METAR short form + `vis` in statute miles
+  - `ALT` altimeter setting (inHg) + `DA` density altitude + `CEIL`
+    when overcast/broken layers are present
+
+The status page (button **C**) shows battery, Wi-Fi, station, and
+local sunrise/sunset times. The Details page (button **B**) shows
+altimeter, dewpoint, spread, DA, PA, plus the raw METAR text. One more
+**B** press from there shows the **TAF** forecast for the current
+station.
 
 **Dark mode overnight:** between 22:00 and 06:00 local time (via
 `TIMEZONE_OFFSET`), the whole panel inverts — black background with
