@@ -73,14 +73,23 @@ def test_body_row_clouds_and_vis_at_scale_2():
     assert "10SM" in cld_lines[0]
 
 
-def test_body_row_da_and_ceil_at_scale_2():
+def test_body_row_da_at_scale_2():
     d = FakeDisplay()
     render(d, _WEATHER)
     body = [args for name, args in d.calls if name == "text" and args[4] == 2]
     da_lines = [t for t, *_ in body if t.startswith("DA")]
     assert da_lines
-    assert "5800ft" in da_lines[0]
-    assert "CEIL" in da_lines[0]
+    assert "5800" in da_lines[0]
+
+
+def test_body_row_da_includes_ceiling_when_no_runway():
+    d = FakeDisplay()
+    w = dict(_WEATHER, ceiling_ft=8000)
+    render(d, w)
+    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
+    da_lines = [t for t in body if t.startswith("DA")]
+    assert da_lines
+    assert "CEIL 8000" in da_lines[0]
 
 
 def test_no_temp_dew_when_dewpoint_missing():
@@ -93,31 +102,34 @@ def test_no_temp_dew_when_dewpoint_missing():
     assert "/" not in wind_lines[0]
 
 
-def test_renders_runway_when_configured():
+def test_runway_appended_to_da_row_when_configured():
     d = FakeDisplay()
     w = dict(_WEATHER, runway_heading_deg=170, headwind_kt=12,
              crosswind_kt=5, crosswind_side="L")
     render(d, w)
-    rwy = [args[0] for name, args in d.calls if name == "text" and args[0].startswith("RWY")]
-    assert rwy
-    assert "RWY17" in rwy[0]
-    assert "HW12" in rwy[0]
-    assert "XW5L" in rwy[0]
+    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
+    da_lines = [t for t in body if t.startswith("DA")]
+    assert da_lines
+    assert "RWY17" in da_lines[0]
+    assert "HW12" in da_lines[0]
+    assert "XW5L" in da_lines[0]
 
 
-def test_no_runway_line_when_not_configured():
+def test_no_runway_in_da_row_when_not_configured():
     d = FakeDisplay()
     render(d, _WEATHER)
-    rwy = [args[0] for name, args in d.calls if name == "text" and args[0].startswith("RWY")]
-    assert not rwy
+    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
+    da_lines = [t for t in body if t.startswith("DA")]
+    assert da_lines
+    assert "RWY" not in da_lines[0]
 
 
-def test_footer_sunrise_sunset_right_aligned():
+def test_no_sunrise_sunset_on_main():
     d = FakeDisplay()
     render(d, _WEATHER)
     texts = " ".join(args[0] for name, args in d.calls if name == "text")
-    assert "SR 06:45" in texts
-    assert "SS 20:15" in texts
+    assert "SR " not in texts
+    assert "SS " not in texts
 
 
 def test_inverted_category_for_ifr():

@@ -75,37 +75,25 @@ def render(display, weather, stale_marker=None, invert=None):
         line2 += "  vis {0}SM".format(v)
     display.text(line2, 4, 84, scale=2)
 
-    # Row 3: DA + ceiling
-    parts3 = []
-    if da is not None:
-        parts3.append("DA {0}ft".format(da))
-    ceil_str = "{0}ft".format(ceiling) if ceiling is not None else "---"
-    parts3.append("CEIL {0}".format(ceil_str))
-    display.text("  ".join(parts3), 4, 102, scale=2)
-
-    # ─── Footer (scale 1) ───────────────────────────────────
-    sr = w.get("sunrise_local")
-    ss = w.get("sunset_local")
+    # Row 3: DA + (RWY when configured else CEIL)
     rwy_hdg = w.get("runway_heading_deg")
     hw = w.get("headwind_kt")
     xw = w.get("crosswind_kt")
     xw_side = w.get("crosswind_side") or ""
 
+    parts3 = []
+    if da is not None:
+        parts3.append("DA {0}".format(da))
     if rwy_hdg is not None and hw is not None and xw is not None:
         rwy_num = int(round(rwy_hdg / 10.0)) % 36
         if rwy_num == 0:
             rwy_num = 36
-        display.text("RWY{0:02d} HW{1} XW{2}{3}".format(rwy_num, hw, xw, xw_side),
-                     4, 120, scale=1)
-
-    if sr is not None or ss is not None:
-        parts = []
-        if sr:
-            parts.append("SR {0}".format(sr))
-        if ss:
-            parts.append("SS {0}".format(ss))
-        line = "  ".join(parts)
-        display.text(line, WIDTH - len(line) * 6 - 4, 120, scale=1)
+        parts3.append("RWY{0:02d} HW{1} XW{2}{3}".format(
+            rwy_num, hw, xw, xw_side))
+    elif ceiling is not None:
+        parts3.append("CEIL {0}".format(ceiling))
+    if parts3:
+        display.text("  ".join(parts3), 4, 102, scale=2)
 
     if stale_marker:
         display.text(stale_marker, 4, 120, scale=1)
