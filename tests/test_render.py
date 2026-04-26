@@ -73,23 +73,35 @@ def test_body_row_clouds_and_vis_at_scale_2():
     assert "10SM" in cld_lines[0]
 
 
-def test_body_row_da_at_scale_2():
+def test_body_row_alt_da_at_scale_2():
     d = FakeDisplay()
     render(d, _WEATHER)
-    body = [args for name, args in d.calls if name == "text" and args[4] == 2]
-    da_lines = [t for t, *_ in body if t.startswith("DA")]
-    assert da_lines
-    assert "5800" in da_lines[0]
+    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
+    alt_lines = [t for t in body if t.startswith("ALT")]
+    assert alt_lines
+    assert "29.92" in alt_lines[0]
+    assert "DA 5800" in alt_lines[0]
 
 
-def test_body_row_da_includes_ceiling_when_no_runway():
+def test_body_row_includes_ceiling_when_present():
     d = FakeDisplay()
     w = dict(_WEATHER, ceiling_ft=8000)
     render(d, w)
     body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
-    da_lines = [t for t in body if t.startswith("DA")]
-    assert da_lines
-    assert "CEIL 8000" in da_lines[0]
+    alt_lines = [t for t in body if t.startswith("ALT")]
+    assert alt_lines
+    assert "CEIL 8000" in alt_lines[0]
+
+
+def test_body_row_omits_da_when_unknown():
+    d = FakeDisplay()
+    w = dict(_WEATHER, density_altitude_ft=None)
+    render(d, w)
+    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
+    alt_lines = [t for t in body if t.startswith("ALT")]
+    assert alt_lines
+    assert "DA" not in alt_lines[0]
+    assert "29.92" in alt_lines[0]
 
 
 def test_no_temp_dew_when_dewpoint_missing():
@@ -102,26 +114,15 @@ def test_no_temp_dew_when_dewpoint_missing():
     assert "/" not in wind_lines[0]
 
 
-def test_runway_appended_to_da_row_when_configured():
+def test_no_runway_anywhere_on_main():
     d = FakeDisplay()
     w = dict(_WEATHER, runway_heading_deg=170, headwind_kt=12,
              crosswind_kt=5, crosswind_side="L")
     render(d, w)
-    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
-    da_lines = [t for t in body if t.startswith("DA")]
-    assert da_lines
-    assert "RWY17" in da_lines[0]
-    assert "HW12" in da_lines[0]
-    assert "XW5L" in da_lines[0]
-
-
-def test_no_runway_in_da_row_when_not_configured():
-    d = FakeDisplay()
-    render(d, _WEATHER)
-    body = [args[0] for name, args in d.calls if name == "text" and args[4] == 2]
-    da_lines = [t for t in body if t.startswith("DA")]
-    assert da_lines
-    assert "RWY" not in da_lines[0]
+    texts = " ".join(args[0] for name, args in d.calls if name == "text")
+    assert "RWY" not in texts
+    assert "HW" not in texts
+    assert "XW" not in texts
 
 
 def test_no_sunrise_sunset_on_main():

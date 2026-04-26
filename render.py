@@ -75,25 +75,18 @@ def render(display, weather, stale_marker=None, invert=None):
         line2 += "  vis {0}SM".format(v)
     display.text(line2, 4, 84, scale=2)
 
-    # Row 3: DA + (RWY when configured else CEIL)
-    rwy_hdg = w.get("runway_heading_deg")
-    hw = w.get("headwind_kt")
-    xw = w.get("crosswind_kt")
-    xw_side = w.get("crosswind_side") or ""
-
+    # Row 3: aviation pressure block — altimeter, DA, ceiling.
+    altim = w.get("altimeter_inhg")
     parts3 = []
+    if altim is not None:
+        parts3.append("ALT {0:.2f}".format(altim))
     if da is not None:
         parts3.append("DA {0}".format(da))
-    if rwy_hdg is not None and hw is not None and xw is not None:
-        rwy_num = int(round(rwy_hdg / 10.0)) % 36
-        if rwy_num == 0:
-            rwy_num = 36
-        parts3.append("RWY{0:02d} HW{1} XW{2}{3}".format(
-            rwy_num, hw, xw, xw_side))
-    elif ceiling is not None:
+    if ceiling is not None:
         parts3.append("CEIL {0}".format(ceiling))
-    if parts3:
-        display.text("  ".join(parts3), 4, 102, scale=2)
+    if not parts3:
+        parts3.append("---")
+    display.text("  ".join(parts3), 4, 102, scale=2)
 
     if stale_marker:
         display.text(stale_marker, 4, 120, scale=1)

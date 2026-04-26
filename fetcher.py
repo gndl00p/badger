@@ -81,9 +81,8 @@ def _short_name(name):
     return " ".join(w.capitalize() for w in first.split())
 
 
-def _station_info(station):
-    if station in _station_info_cache:
-        return _station_info_cache[station]
+def _station_info_attempt(station):
+    """Single shot at the airport endpoint. Returns dict or None on any failure."""
     try:
         r = _http_get_airport(station)
         if r.status_code != 200:
@@ -99,16 +98,38 @@ def _station_info(station):
             return None
         entry = data[0]
         elev_m = entry.get("elev")
-        info = {
+        return {
             "elev_ft": int(round(float(elev_m) * 3.28084)) if elev_m is not None else None,
             "name": _short_name(entry.get("name")),
             "lat": entry.get("lat"),
             "lon": entry.get("lon"),
         }
-        _station_info_cache[station] = info
-        return info
     except Exception:
         return None
+
+
+def _station_info(station):
+    if station in _station_info_cache:
+        return _station_info_cache[station]
+    # Pico W TLS gets cranky on back-to-back HTTPS to the same host. gc + a
+    # short delay between attempts gives the stack room to recover.
+    try:
+        import gc
+        gc.collect()
+    except Exception:
+        pass
+    info = _station_info_attempt(station)
+    if info is None:
+        try:
+            time.sleep(0.5)
+            import gc
+            gc.collect()
+        except Exception:
+            pass
+        info = _station_info_attempt(station)
+    if info is not None:
+        _station_info_cache[station] = info
+    return info
 
 
 def _day_of_year(y, m, d):
