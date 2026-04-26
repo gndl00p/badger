@@ -108,13 +108,32 @@ def _load_config():
     return config
 
 
+def _is_night(weather, cfg):
+    if not weather:
+        return False
+    updated_z = weather.get("updated_z")
+    if not updated_z:
+        return False
+    try:
+        hh_utc = int(updated_z.split(":")[0])
+    except Exception:
+        return False
+    tz = getattr(cfg, "TIMEZONE_OFFSET", 0)
+    local = (hh_utc + tz) % 24
+    return local >= 22 or local < 6
+
+
 def _cycle(display, cfg, state_path, station_index):
     stations = _stations(cfg)
     station = stations[station_index % len(stations)]
     state = load_state(state_path)
     last = state.get("last_data")
     data, marker = fetch(cfg, last, station=station)
-    render_weather(display, data if data is not None else last, marker)
+    payload = data if data is not None else last
+    # Recompute night-state from the current cfg + observation UTC every cycle
+    # so a TIMEZONE_OFFSET change applies immediately, even if the cached
+    # last_data was saved with a stale derived hour.
+    render_weather(display, payload, marker, invert=_is_night(payload, cfg))
     if data is not None and marker is None:
         save_state(state_path, {"station_index": station_index, "last_data": data})
     return marker

@@ -53,6 +53,40 @@ def test_cycle_returns_marker_on_failure(tmp_path, monkeypatch):
     assert marker == "offline"
 
 
+def test_is_night_uses_current_tz_offset():
+    # 18 UTC + (-5) = 13 local — daytime.
+    cfg = SimpleNamespace(TIMEZONE_OFFSET=-5)
+    assert main._is_night({"updated_z": "18:00"}, cfg) is False
+    # 18 UTC + 0 = 18 local — also daytime.
+    cfg = SimpleNamespace(TIMEZONE_OFFSET=0)
+    assert main._is_night({"updated_z": "18:00"}, cfg) is False
+
+
+def test_is_night_after_22_local():
+    # 04 UTC + (-5) = 23 local previous day — night.
+    cfg = SimpleNamespace(TIMEZONE_OFFSET=-5)
+    assert main._is_night({"updated_z": "04:00"}, cfg) is True
+    # 02 UTC + (-5) = 21 local — still day boundary at 22.
+    assert main._is_night({"updated_z": "02:00"}, cfg) is False
+    # 03 UTC + (-5) = 22 local — night threshold.
+    assert main._is_night({"updated_z": "03:00"}, cfg) is True
+
+
+def test_is_night_recomputes_ignoring_stale_hour_field():
+    # Cached weather has updated_hour_local=22 (stale, saved with old TZ=0)
+    # but current TZ is -5 and current observation is 18Z → local 13 → day.
+    cfg = SimpleNamespace(TIMEZONE_OFFSET=-5)
+    weather = {"updated_z": "18:00", "updated_hour_local": 22}
+    assert main._is_night(weather, cfg) is False
+
+
+def test_is_night_no_observation():
+    cfg = SimpleNamespace(TIMEZONE_OFFSET=-5)
+    assert main._is_night(None, cfg) is False
+    assert main._is_night({}, cfg) is False
+    assert main._is_night({"updated_z": None}, cfg) is False
+
+
 def test_cycle_switches_station_by_index(tmp_path, monkeypatch):
     p = tmp_path / "state.json"
     p.write_text("{}")
